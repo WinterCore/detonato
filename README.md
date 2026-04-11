@@ -1,5 +1,7 @@
 # Detonato
 
+![Detonato](detonato.png)
+
 A stopwatch/counter and pomodoro timer built with OpenGL, using [Posy's beautiful 7-segment digit designs](https://www.youtube.com/watch?v=RTB5XhjbgZA).
 
 ## Building
