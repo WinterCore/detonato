@@ -1,6 +1,10 @@
 #ifndef RENDER_H
 #define RENDER_H
 
+#include "aids.h"
+#include "gl_helpers.h"
+#include "glad/gl.h"
+#include "style.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -26,8 +30,14 @@ typedef struct DigitLayout {
     float narrow_w;
 } DigitLayout;
 
+typedef enum DurationFormat {
+    FMT_MM_SS,
+    FMT_HH_MM_SS,
+    FMT_HH_MM_SS_MS,
+} DurationFormat;
+
 DigitLayout compute_layout(
-    const char *pattern,
+    DurationFormat fmt,
     int vw,
     float pad_l, float pad_r,
     float gap,
@@ -35,6 +45,22 @@ DigitLayout compute_layout(
     float aspect_ratio
 );
 
-bool should_render_segment(uint64_t bitmask, uint8_t index);
+void format_duration(DurationFormat fmt, int64_t ms, uint8_t *digits_out);
+
+typedef struct RenderContext {
+    GLint uniformOffset, uniformScale, uniformAlpha, uniformColor;
+    DigitStyle *style;
+    Mesh mesh;
+} RenderContext;
+
+void render_digit(
+    RenderContext *ctx,
+    Vec2 *offset,
+    Vec2 *scale,
+    Vec3 *color,
+    float *alpha,
+    uint8_t render_mask,
+    int digit
+);
 
 #endif

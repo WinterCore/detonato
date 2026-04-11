@@ -1,10 +1,8 @@
 #include "aids.h"
 #include "gl_helpers.h"
-#include "render.h"
 #include "style.h"
 #include <GLFW/glfw3.h>
 #include <stdbool.h>
-#include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -86,6 +84,11 @@ static DigitSegment *convert_shape_to_segment(NSVGshape *shape) {
 
 SegmentDigitShape preprocess_segment_svg(char *path) {
     struct NSVGimage *image = nsvgParseFromFile(path, "px", 96);
+    
+    if (image == NULL) {
+        PANIC("Failed to read file %s", path);
+    }
+
     SegmentDigitShape seven_segment_shape = {
         .segments = {NULL},
         .aspect_ratio = image->width / image->height,
@@ -155,8 +158,13 @@ DigitStyle build_segment_mesh(SegmentDigitShape *shape) {
     return data;
 }
 
-int main() {
-    char *name = "sports";
+int main(int argc, char *argv[]) {
+    if (argc < 2) {
+        printf("Usage ./preprocess [asset file name]");
+        return 0;
+    }
+
+    char *name = argv[1];
 
     char svg_path[100];
     sprintf(svg_path, "assets/%s.svg", name);
@@ -175,16 +183,16 @@ int main() {
     Mesh mesh = create_mesh(2); // x, y
 
     DigitStyle style = build_segment_mesh(&shape);
-    style.segment_bitmask[0] = 0b1110111;
-    style.segment_bitmask[1] = 0b0100100;
-    style.segment_bitmask[2] = 0b1011101;
-    style.segment_bitmask[3] = 0b1101101;
-    style.segment_bitmask[4] = 0b0101110;
-    style.segment_bitmask[5] = 0b1101011;
-    style.segment_bitmask[6] = 0b1111011;
-    style.segment_bitmask[7] = 0b0100101;
-    style.segment_bitmask[8] = 0b1111111;
-    style.segment_bitmask[9] = 0b1101111;
+    style.segment_bitmask[0] = 0b111000;
+    style.segment_bitmask[1] = 0b001100;
+    style.segment_bitmask[2] = 0b101101;
+    style.segment_bitmask[3] = 0b110101;
+    style.segment_bitmask[4] = 0b010110;
+    style.segment_bitmask[5] = 0b110011;
+    style.segment_bitmask[6] = 0b111100;
+    style.segment_bitmask[7] = 0b001101;
+    style.segment_bitmask[8] = 0b111111;
+    style.segment_bitmask[9] = 0b001111;
 
 
     int w, h;
@@ -239,7 +247,7 @@ int main() {
         glUniform3f(colorLoc, 1.0f, 1.0f, 1.0f);
 
         for (int i = 0; i < style.segment_count; i++) {
-            if (should_render_segment(style.segment_bitmask[digit], i)) {
+            if (is_segment_visible(&style, digit, i)) {
                 glUniform1f(alphaLoc, 1);
                 draw_range(mesh, style.segment_vertex_start[i], style.segment_vertex_count[i]);
             }
@@ -250,6 +258,7 @@ int main() {
     }
 
     glfwTerminate();
+    destroy_digit_style(&style);
     destroy_segment_shape(&shape);
 
     return 0;

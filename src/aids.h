@@ -39,4 +39,12 @@ float clamp(float min, float max, float v);
 float lerp(float a, float b, float v);
 float remap(float source_a, float source_b, float dest_a, float dest_b, float value);
 
+typedef struct Vec2 {
+    float x, y;
+} Vec2;
+
+typedef struct Vec3 {
+    float x, y, z;
+} Vec3;
+
 #endif
