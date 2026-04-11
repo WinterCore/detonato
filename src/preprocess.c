@@ -1,5 +1,12 @@
+#include "aids.h"
+#include "gl_helpers.h"
+#include "render.h"
+#include "style.h"
+#include <GLFW/glfw3.h>
 #include <stdbool.h>
 #include <assert.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -29,7 +36,7 @@ void flatten_cubic_bez(float* pts, int n, float* out, int* outCount, bool skip_f
     }
 }
 
-static SevenSegmentSegment *convert_shape_to_segment(NSVGshape *shape) {
+static DigitSegment *convert_shape_to_segment(NSVGshape *shape) {
     TESStesselator *tess = tessNewTess(NULL);
 
     // Flatten each path's beziers into a contour and add to tessellator
@@ -61,7 +68,7 @@ static SevenSegmentSegment *convert_shape_to_segment(NSVGshape *shape) {
 
     // Each element is a triangle (3 indices), output as 3 vertices × 2 floats
     int total_verts = nelems * 3;
-    SevenSegmentSegment *segment = malloc(sizeof(SevenSegmentSegment) + total_verts * 2 * sizeof(float));
+    DigitSegment *segment = malloc(sizeof(DigitSegment) + total_verts * 2 * sizeof(float));
     segment->vertices_count = total_verts;
 
     for (int i = 0; i < nelems; i++) {
@@ -77,9 +84,9 @@ static SevenSegmentSegment *convert_shape_to_segment(NSVGshape *shape) {
     return segment;
 }
 
-SevenSegmentShape preprocess_7_segment_svg(char *path) {
+SegmentDigitShape preprocess_segment_svg(char *path) {
     struct NSVGimage *image = nsvgParseFromFile(path, "px", 96);
-    SevenSegmentShape seven_segment_shape = {
+    SegmentDigitShape seven_segment_shape = {
         .segments = {NULL},
         .aspect_ratio = image->width / image->height,
     };
@@ -88,8 +95,6 @@ SevenSegmentShape preprocess_7_segment_svg(char *path) {
 
     struct NSVGshape *shape = image->shapes;
     while (shape != NULL) {
-        assert(i < 7);
-
         seven_segment_shape.segments[i] = convert_shape_to_segment(shape);
         i += 1;
 
@@ -97,9 +102,9 @@ SevenSegmentShape preprocess_7_segment_svg(char *path) {
     }
 
     // Normalize all vertices to 0-1 range
-    for (int j = 0; j < 7; j++) {
+    for (int j = 0; j < i; j++) {
         if (!seven_segment_shape.segments[j]) break;
-        SevenSegmentSegment *seg = seven_segment_shape.segments[j];
+        DigitSegment *seg = seven_segment_shape.segments[j];
         for (int k = 0; k < seg->vertices_count; k++) {
             seg->vertices[k * 2 + 0] /= image->width;
             seg->vertices[k * 2 + 1] /= image->height;
@@ -108,33 +113,144 @@ SevenSegmentShape preprocess_7_segment_svg(char *path) {
 
     nsvgDelete(image);
 
+    seven_segment_shape.segment_count = i;
+
     return seven_segment_shape;
 }
 
-SegmentMeshData build_segment_mesh(SevenSegmentShape *shape) {
+void destroy_segment_shape(SegmentDigitShape *shape) {
+    for (int i = 0; i < shape->segment_count; i++) {
+        free(shape->segments[i]);
+        shape->segments[i] = NULL;
+    }
+}
+
+DigitStyle build_segment_mesh(SegmentDigitShape *shape) {
     int total_floats = 0;
-    for (int i = 0; i < 7; i++) {
+    for (int i = 0; i < shape->segment_count; i++) {
         if (!shape->segments[i]) break;
         total_floats += shape->segments[i]->vertices_count * 2;
     }
 
-    SegmentMeshData data = {
+    DigitStyle data = {
         .vertices = malloc(total_floats * sizeof(float)),
         .total_floats = total_floats,
+        .segment_count = shape->segment_count,
+        .aspect_ratio = shape->aspect_ratio,
     };
 
     int offset = 0;
-    for (int i = 0; i < 7; i++) {
+    for (int i = 0; i < shape->segment_count; i++) {
         if (!shape->segments[i]) break;
-        SevenSegmentSegment *seg = shape->segments[i];
+        DigitSegment *seg = shape->segments[i];
         int floats = seg->vertices_count * 2;
 
-        data.segment_start[i] = offset / 2;
-        data.segment_count[i] = seg->vertices_count;
+        data.segment_vertex_start[i] = offset / 2;
+        data.segment_vertex_count[i] = seg->vertices_count;
 
         memcpy(&data.vertices[offset], seg->vertices, floats * sizeof(float));
         offset += floats;
     }
 
     return data;
+}
+
+int main() {
+    char *name = "sports";
+
+    char svg_path[100];
+    sprintf(svg_path, "assets/%s.svg", name);
+    SegmentDigitShape shape = preprocess_segment_svg(svg_path);
+
+    GLFWwindow *window = create_window(800, 600, "7 Segment Display");
+
+    GLuint shader_program = load_shader_program("shaders/segment.vert", "shaders/segment.frag");
+    GLint viewWidthLoc = glGetUniformLocation(shader_program, "viewWidth");
+    GLint viewHeightLoc = glGetUniformLocation(shader_program, "viewHeight");
+    GLint offsetLoc = glGetUniformLocation(shader_program, "offset");
+    GLint scaleLoc = glGetUniformLocation(shader_program, "scale");
+    GLint alphaLoc = glGetUniformLocation(shader_program, "alpha");
+    GLint colorLoc = glGetUniformLocation(shader_program, "color");
+
+    Mesh mesh = create_mesh(2); // x, y
+
+    DigitStyle style = build_segment_mesh(&shape);
+    style.segment_bitmask[0] = 0b1110111;
+    style.segment_bitmask[1] = 0b0100100;
+    style.segment_bitmask[2] = 0b1011101;
+    style.segment_bitmask[3] = 0b1101101;
+    style.segment_bitmask[4] = 0b0101110;
+    style.segment_bitmask[5] = 0b1101011;
+    style.segment_bitmask[6] = 0b1111011;
+    style.segment_bitmask[7] = 0b0100101;
+    style.segment_bitmask[8] = 0b1111111;
+    style.segment_bitmask[9] = 0b1101111;
+
+
+    int w, h;
+
+    int digit = 0;
+
+    while (! glfwWindowShouldClose(window)) {
+        if (is_key_pressed(window, KEY_ESCAPE)) {
+            glfwSetWindowShouldClose(window, 1);
+        }
+
+        if (is_key_pressed(window, KEY_LEFT)) {
+            digit = digit == 0 ? 9 : digit - 1;
+        }
+
+        if (is_key_pressed(window, KEY_RIGHT)) {
+            digit = (digit + 1) % 10;
+        }
+
+        if (is_key_pressed(window, KEY_ENTER)) {
+            write_digit_style(name, &style);
+            printf("Wrote styles/%s.bin", name);
+
+            break;
+        }
+
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        glUseProgram(shader_program);
+
+        glfwGetFramebufferSize(window, &w, &h);
+        glViewport(0, 0, w, h);
+
+        upload_vertices(mesh, style.vertices, style.total_floats);
+        
+        float half_width = (float) w / 2;
+        float half_height = (float) h / 2;
+
+        float digit_width = 1000;
+        float digit_height = 1000 / shape.aspect_ratio;
+
+        float scale = MIN(half_width / digit_width, (half_height * 1.5f) / digit_height);
+
+        digit_width *= scale;
+        digit_height *= scale;
+
+        glUniform1f(viewWidthLoc, (float) w);
+        glUniform1f(viewHeightLoc, (float) h);
+        glUniform2f(offsetLoc, half_width - digit_width / 2, half_height - digit_height / 2);
+        glUniform2f(scaleLoc, digit_width, digit_height);
+
+        glUniform3f(colorLoc, 1.0f, 1.0f, 1.0f);
+
+        for (int i = 0; i < style.segment_count; i++) {
+            if (should_render_segment(style.segment_bitmask[digit], i)) {
+                glUniform1f(alphaLoc, 1);
+                draw_range(mesh, style.segment_vertex_start[i], style.segment_vertex_count[i]);
+            }
+        }
+
+        glfwSwapBuffers(window);
+        glfwPollEvents();
+    }
+
+    glfwTerminate();
+    destroy_segment_shape(&shape);
+
+    return 0;
 }

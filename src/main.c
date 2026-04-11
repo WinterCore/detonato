@@ -1,10 +1,11 @@
 #include "gl_helpers.h"
 #include "glad/gl.h"
 #include "preprocess.h"
+#include "render.h"
 #include <GLFW/glfw3.h>
 
 int main() {
-    SevenSegmentShape shape = preprocess_7_segment_svg("assets/sports.svg");
+    SegmentDigitShape shape = preprocess_segment_svg("assets/sports.svg");
 
     GLFWwindow *window = create_window(800, 600, "7 Segment Display");
 
@@ -16,7 +17,7 @@ int main() {
     GLint alphaLoc = glGetUniformLocation(shader_program, "alpha");
     GLint colorLoc = glGetUniformLocation(shader_program, "color");
 
-    Mesh mesh = create_mesh(2); // 5 floats per vertex: x, y, r, g, b
+    Mesh mesh = create_mesh(2); // x, y
 
     SegmentMeshData mesh_data = build_segment_mesh(&shape);
 
@@ -36,16 +37,20 @@ int main() {
 
         upload_vertices(mesh, mesh_data.vertices, mesh_data.total_floats);
 
-        glUniform1f(viewWidthLoc, (float) w);
-        glUniform1f(viewHeightLoc, (float) h);
-        glUniform2f(offsetLoc, 100.0f, 50.0f);  // position in pixels
-        glUniform1f(scaleLoc, 200.0f);          // size in pixels        
+        DigitLayout layout = compute_layout("DD:DD.DDD", w, 100, 100, 50, 0.8, shape.aspect_ratio);
 
-        glUniform3f(colorLoc, 1.0f, 1.0f, 1.0f);
+        for (int i = 0; i < layout.slot_count; i += 1) {
+            glUniform1f(viewWidthLoc, (float) w);
+            glUniform1f(viewHeightLoc, (float) h);
+            glUniform2f(offsetLoc, layout.slots[i].x, (float) h / 2 - layout.digit_h / 2);
+            glUniform2f(scaleLoc, layout.slots[i].w, layout.digit_h);
 
-        for (int i = 0; i < 7; i++) {
-            glUniform1f(alphaLoc, 1);
-            draw_range(mesh, mesh_data.segment_start[i], mesh_data.segment_count[i]);
+            glUniform3f(colorLoc, 1.0f, 1.0f, 1.0f);
+
+            for (int i = 0; i < 7; i++) {
+                glUniform1f(alphaLoc, 1);
+                draw_range(mesh, mesh_data.segment_vertex_start[i], mesh_data.segment_vertex_count[i]);
+            }
         }
 
         glfwSwapBuffers(window);
@@ -53,6 +58,7 @@ int main() {
     }
 
     glfwTerminate();
+    destroy_segment_shape(&shape);
 
     return 0;
 }

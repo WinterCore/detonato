@@ -4,7 +4,7 @@ layout (location = 0) in vec2 aPos;
 uniform float viewWidth;
 uniform float viewHeight;
 uniform vec2 offset;
-uniform float scale;
+uniform vec2 scale;
 
 void main() {
     vec2 pos = aPos * scale + offset;

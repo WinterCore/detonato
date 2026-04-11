@@ -1,24 +1,23 @@
 #ifndef PROCESS_C
 #define PROCESS_C
 
-typedef struct SevenSegmentSegment {
+#include <stdint.h>
+#include "style.h"
+
+typedef struct DigitSegment {
     int vertices_count;
     float vertices[];
-} SevenSegmentSegment;
+} DigitSegment;
 
-typedef struct SevenSegmentShape {
-    SevenSegmentSegment *segments[7];
+typedef struct SegmentDigitShape {
+    DigitSegment *segments[MAX_SEGMENTS];
+    int segment_count;
+
     float aspect_ratio;
-} SevenSegmentShape;
+} SegmentDigitShape;
 
-typedef struct {
-    float *vertices;
-    int total_floats;
-    int segment_start[7];
-    int segment_count[7];
-} SegmentMeshData;
-
-SevenSegmentShape preprocess_7_segment_svg(char *path);
-SegmentMeshData build_segment_mesh(SevenSegmentShape *shape);
+SegmentDigitShape preprocess_segment_svg(char *path);
+void destroy_segment_shape(SegmentDigitShape *shape);
+DigitStyle build_segment_mesh(SegmentDigitShape *shape);
 
 #endif

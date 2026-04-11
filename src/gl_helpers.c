@@ -1,5 +1,7 @@
 #include "gl_helpers.h"
+#include "aids.h"
 
+#include <GLFW/glfw3.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -149,4 +151,39 @@ void draw_range(Mesh mesh, int start, int count) {
     glBindVertexArray(mesh.vao);
     glDrawArrays(GL_TRIANGLES, start, count);
     glBindVertexArray(0);
+}
+
+static int map_key_to_glfw_key(Key key) {
+    switch (key) {
+        case KEY_ENTER:
+            return GLFW_KEY_ENTER;
+        case KEY_LEFT:
+            return GLFW_KEY_LEFT;
+        case KEY_RIGHT:
+            return GLFW_KEY_RIGHT;
+        case KEY_ESCAPE:
+            return GLFW_KEY_ESCAPE;
+        case KEY_COUNT:
+            UNREACHABLE;
+    }
+
+    UNREACHABLE
+}
+
+uint8_t key_state[KEY_COUNT] = {0};
+
+bool is_key_pressed(GLFWwindow *window, Key key) {
+    if (glfwGetKey(window, map_key_to_glfw_key(key)) == GLFW_PRESS) {
+        key_state[key] = true;
+
+        return false;
+    }
+
+    if (glfwGetKey(window, map_key_to_glfw_key(key)) == GLFW_RELEASE && key_state[key]) {
+        key_state[key] = false;
+
+        return true;
+    }
+
+    return false;
 }
