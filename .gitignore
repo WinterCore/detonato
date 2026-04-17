@@ -2,3 +2,4 @@ detonato
 preprocess
 .cache
 compile_commands.json
+*.dSYM

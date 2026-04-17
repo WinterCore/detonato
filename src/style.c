@@ -36,6 +36,10 @@ void load_digit_style(const char *name, DigitStyle *style) {
     FILE *file = fopen(filename, "rb");
 
     if (file == NULL) {
+        if (errno == ENOENT) {
+            PANIC("Unknkown style %s", name);
+        }
+
         PANIC("Failed to open file: %s", strerror(errno));
     }
 

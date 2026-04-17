@@ -3,10 +3,22 @@
 #include "render.h"
 #include "style.h"
 #include <GLFW/glfw3.h>
-#include <bits/time.h>
+#include <time.h>
 #include <time.h>
 
+const char *STYLES[] = {
+    "double-bubble",
+    "sports",
+    "x-black"
+};
+
 int main(int argc, char *argv[]) {
+    char *style_name = "sports";
+
+    if (argc > 1) {
+        style_name = argv[1];
+    }
+
     GLFWwindow *window = create_window(800, 600, "Detonato");
 
     GLuint shader_program = load_shader_program("shaders/segment.vert", "shaders/segment.frag");
@@ -19,12 +31,6 @@ int main(int argc, char *argv[]) {
 
     Mesh mesh = create_mesh(2); // x, y
     
-    char *style_name = "sports";
-
-    if (argc > 1) {
-        style_name = argv[1];
-    }
-
     DigitStyle style;
     load_digit_style(style_name, &style);
 

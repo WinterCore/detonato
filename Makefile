@@ -1,6 +1,14 @@
 CC = gcc
-CFLAGS = -g -O0 -Wall -Wextra -Ivendor -Ivendor/glad/include -Ivendor/libtess2/include $(shell pkg-config --cflags glfw3)
-LDFLAGS = -lm -lGL $(shell pkg-config --libs glfw3)
+CFLAGS = -g -O0 -Wall -Wextra -Ivendor -Ivendor/glad/include -Ivendor/libtess2/include
+LDFLAGS = -lm
+
+ifeq ($(OS),Darwin)
+	CFLAGS += `pkg-config --cflags glfw3`
+	LDFLAGS += `pkg-config --static --libs glfw3`
+else
+	CFLAGS += `pkg-config --cflags glfw3`
+	LDFLAGS += `pkg-config --static --libs glfw3`
+endif
 
 LIBTESS_SRC = $(wildcard vendor/libtess2/src/*.c)
 
